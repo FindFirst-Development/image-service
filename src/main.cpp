@@ -2,34 +2,60 @@
 #include <crow/http_response.h>
 #include <fstream>
 #include <ios>
+#include <string>
 
 int main() {
   crow::SimpleApp app; // define your crow application
 
+  constexpr std::size_t MAX_SIZE =
+      150ULL * 1024 * 1024; // 150 MiB max file size.
+
   // define your endpoint at the root directory
-  CROW_ROUTE(app, "/")([]() {
-    crow::response res;
-    std::string fileName = "res/static/test_files/test.jpg";
+  CROW_ROUTE(app, "/<path>")([](std::filesystem::path image_name) {
+    std::string filename =
+        "res/static/test_files/" + image_name.filename().string();
+    std::string ext;
+
+    // checks
+    if (!std::filesystem::exists(filename)) {
+      return crow::response(500, "Image does not exist.");
+    }
+
+    if (image_name.has_extension()) {
+      ext = image_name.extension().string().erase(0, 1);
+      if (ext != "png" && ext != "jpeg" && ext != "jpg") {
+        return crow::response(500, "Images only supported");
+      }
+    } else {
+      return crow::response(500, "Images only supported");
+    }
+
+    std::uintmax_t filesize = std::filesystem::file_size(filename);
+    if (filesize > MAX_SIZE) {
+      return crow::response(500, "Error getting image: image too large.");
+    }
 
     // read example image
-    std::ifstream imageReq(fileName, std::ios_base::binary);
+    std::ifstream img(filename, std::ios_base::binary);
     // output buffer
-    std::stringstream imageBuffer(std::ios_base::binary);
+    std::stringstream out;
 
-    if (!imageReq.is_open()) {
+    if (!img.is_open()) {
       std::cout << "Error reading the image";
       return crow::response(500, "Error getting image");
     }
-    imageBuffer << imageReq.rdbuf();
-    imageReq.close();
 
-    std::uintmax_t filesize = std::filesystem::file_size(fileName);
-    // do some bound checking.
-    std::cout << filesize << std::endl;
+    std::string s;
+    s.resize(static_cast<size_t>(filesize));
+    img.read(&s[0], filesize);
 
-    std::string mime = "image/jpg";
+    // close the image file.
+    img.close();
+
+    std::string mime = "image/" + ext;
+    crow::response res;
     res.set_header("Content-Type", mime);
-    res.body = imageBuffer.str();
+    res.body = s;
 
     return res;
   });

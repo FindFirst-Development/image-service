@@ -10,19 +10,18 @@ int main() {
   CROW_ROUTE(app, "/")([]() {
     crow::response res;
     std::string fileName = "res/static/test_files/test.jpg";
-    std::stringstream imageBuffer;
 
     // read example image
     std::ifstream imageReq(fileName, std::ios_base::binary);
-    if (!imageReq) {
+    // output buffer
+    std::stringstream imageBuffer(std::ios_base::binary);
+
+    if (!imageReq.is_open()) {
       std::cout << "Error reading the image";
-      imageReq.close();
       return crow::response(500, "Error getting image");
     }
-
-    if (imageReq.is_open()) {
-      imageBuffer << imageReq.rdbuf();
-    }
+    imageBuffer << imageReq.rdbuf();
+    imageReq.close();
 
     std::uintmax_t filesize = std::filesystem::file_size(fileName);
     // do some bound checking.

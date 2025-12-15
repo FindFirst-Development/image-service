@@ -16,9 +16,11 @@ int main() {
   CROW_ROUTE(app, "/<path>")([](std::filesystem::path image_name) {
     std::string img_dir_path = "res/static/test_files/";
     const char *img_dir = std::getenv("IMAGE_DIR");
-    // ensure that the env path exists before switching from safe default.
-    if (std::filesystem::exists(img_dir_path)) {
-      img_dir_path = std::string(img_dir);
+    // ensure that the env && path exists before switching from safe default.
+    if (img_dir) {
+      if (std::filesystem::exists(img_dir)) {
+        img_dir_path = std::string(img_dir);
+      }
     }
 
     std::string filename = img_dir_path + image_name.filename().string();
